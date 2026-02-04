@@ -1,10 +1,11 @@
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -13,19 +14,7 @@ import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-/**
- * use a single map reduce job
- * the idea is pretty similar to task B, but since we dont have to sort so one map reduce job is enough
- * to compute the connectedness factor for each page owner
- *
- * two mappers emit personId as the key from pages csv and friends csv
- * the reducer joins the data and counts friend occurrences per person
- *
- * this is already optimal ans scalable, the single job approach minimize overhead while efficiently parallelizing the counting operation
- * across reducers
- */
-
-public class TaskD {
+public class TaskF {
     public static class PagesMapper extends Mapper<LongWritable, Text, Text, Text> {
         private final Text k = new Text();
         private final Text v = new Text();
@@ -51,76 +40,115 @@ public class TaskD {
 
     public static class FriendsMapper extends Mapper<LongWritable, Text, Text, Text> {
         private final Text k = new Text();
-        private static final Text v = new Text("F|1");
+        private final Text v = new Text();
 
         @Override
         public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             String line = value.toString();
-            if (line.startsWith("FriendsRel")) return; // skip header
+            if (line.startsWith("FriendRel")) return;
 
             String[] f = line.split(",", -1);
             if (f.length < 3) return;
 
+            String personId = f[1].trim();
             String myFriend = f[2].trim();
-            if (myFriend.isEmpty()) return;
 
-            k.set(myFriend);
+            if (personId.isEmpty() || myFriend.isEmpty()) return;
+
+            k.set(personId);
+            v.set("F|" + myFriend);
             context.write(k, v);
         }
     }
 
-    public static class CountReducer extends Reducer<Text, Text, Text, Text> {
+    public static class AccessLogMapper extends Mapper<LongWritable, Text, Text, Text> {
+        private final Text k = new Text();
+        private final Text v = new Text();
+
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            String line = value.toString();
+            if (line.startsWith("AccessID")) return;
+
+            String[] f = line.split(",", -1);
+            if (f.length < 5) return;
+
+            String byWho = f[1].trim();
+            String whatPage = f[2].trim();
+
+            if (byWho.isEmpty() || whatPage.isEmpty()) return;
+
+            k.set(byWho);
+            v.set("A|" + whatPage);
+            context.write(k, v);
+        }
+    }
+
+    public static class FilterReducer extends Reducer<Text, Text, Text, Text> {
         private final Text outV = new Text();
 
         @Override
         public void reduce(Text personId, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-            int count = 0;
             String name = null;
+            Set<String> friends = new HashSet<>();
+            Set<String> visited = new HashSet<>();
 
             for (Text value : values) {
                 String s = value.toString();
-                if (s.startsWith("F|")) {
-                    count += 1;
-                } else if (s.startsWith("P|")) {
+                if (s.startsWith("P|")) {
                     String[] parts = s.split("\\|", -1);
-                    if (parts.length >= 2){
+                    if (parts.length >= 2) {
                         name = parts[1];
+                    }
+                } else if (s.startsWith("F|")) {
+                    String[] parts = s.split("\\|", -1);
+                    if (parts.length >= 2) {
+                        friends.add(parts[1]);
+                    }
+                } else if (s.startsWith("A|")) {
+                    String[] parts = s.split("\\|", -1);
+                    if (parts.length >= 2) {
+                        visited.add(parts[1]);
                     }
                 }
             }
 
-            if (name == null) name = "";
+            if (name == null) return;
 
-            outV.set(name + "\t" + count);
-            context.write(personId, outV);
+            for (String friend : friends) {
+                if (!visited.contains(friend)) {
+                    outV.set(name);
+                    context.write(personId, outV);
+                    return;
+                }
+            }
         }
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 3){
-            System.err.println("Usage: TaskD <pagesPath> <friendsPath> <outputPath>");
+        if (args.length < 4) {
+            System.err.println("Usage: TaskF <pagesPath> <friendsPath> <accessLogPath> <outputPath>");
             System.exit(2);
         }
 
         String pagesPath = args[0];
         String friendsPath = args[1];
-        String outputPath = args[2];
+        String accessLogPath = args[2];
+        String outputPath = args[3];
 
         Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "TaskD-Connectedness");
-        job.setJarByClass(TaskD.class);
+        Job job = Job.getInstance(conf, "TaskF-UnvisitedFriends");
+        job.setJarByClass(TaskF.class);
 
-        // Multiple inputs
         MultipleInputs.addInputPath(job, new Path(pagesPath), TextInputFormat.class, PagesMapper.class);
         MultipleInputs.addInputPath(job, new Path(friendsPath), TextInputFormat.class, FriendsMapper.class);
+        MultipleInputs.addInputPath(job, new Path(accessLogPath), TextInputFormat.class, AccessLogMapper.class);
 
-        job.setReducerClass(CountReducer.class);
+        job.setReducerClass(FilterReducer.class);
 
-        // Map output types
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Text.class);
 
-        // Final output types
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
