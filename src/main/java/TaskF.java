@@ -14,6 +14,21 @@ import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+/**
+ * use a single map reduce job with 3 mappers
+ * similar to task D but with an additional mapper to track page visits
+ *
+ * three mappers emit personId as key
+ * PageMapper emit person names
+ * FriendsMapper emit which pages each person visited
+ *
+ * the reducer joins all three data source and compares:
+ * if a person declared someone as friend but never visited their page, output that name and id
+ *
+ * this is optimal and scalable, a single job handles the join and filtering efficiently
+ * without needing multiple passes over the data
+ */
+
 public class TaskF {
     public static class PagesMapper extends Mapper<LongWritable, Text, Text, Text> {
         private final Text k = new Text();
