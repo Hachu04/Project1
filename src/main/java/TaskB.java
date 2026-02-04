@@ -16,6 +16,23 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+/**
+ * use two MapReduce jobs
+ * Job 1:
+ * two mappers read pages and access_logs, both emit pageId as key
+ * reducer groups by pageId, joins page metadata with access records, and count total accesses per page
+ * this is scalable because counting is done in parallel across partitions and only grouped once
+ *
+ * Job 2:
+ * Mapper initialize key by negative to sort descending
+ * single reducer keeps only 10 records
+ * this minimizes output and avoids storing full sorted datasets
+ *
+ * Why:
+ * a single job can not both aggregate and rank efficiently, so a two-stage pipeline is the optimal
+ * scalable approach
+ */
+
 public class TaskB {
     public static class PagesMapper extends Mapper<LongWritable, Text, Text, Text> {
         private final Text k = new Text();
