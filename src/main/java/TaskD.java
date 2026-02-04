@@ -13,6 +13,18 @@ import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+/**
+ * use a single map reduce job
+ * the idea is pretty similar to task B, but since we dont have to sort so one map reduce job is enough
+ * to compute the connectedness factor for each page owner
+ *
+ * two mappers emit personId as the key from pages csv and friends csv
+ * the reducer joins the data and counts friend occurrences per person
+ *
+ * this is already optimal ans scalable, the single job approach minimize overhead while efficiently parallelizing the counting operation
+ * accross reducers
+ */
+
 public class TaskD {
     public static class PagesMapper extends Mapper<LongWritable, Text, Text, Text> {
         private final Text k = new Text();
