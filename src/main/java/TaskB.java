@@ -158,10 +158,10 @@ public class TaskB {
             System.exit(2);
         }
 
-        String pagesPath = args[0];
-        String accessPath = args[1];
-        String tmpOut = args[2];
-        String finalOut = args[3];
+        String pagesPath = args[1];
+        String accessPath = args[2];
+        String tmpOut = args[3];
+        String finalOut = args[4];
 
         Configuration conf = new Configuration();
 

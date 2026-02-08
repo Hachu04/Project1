@@ -102,9 +102,9 @@ public class TaskD {
             System.exit(2);
         }
 
-        String pagesPath = args[0];
-        String friendsPath = args[1];
-        String outputPath = args[2];
+        String pagesPath = args[1];
+        String friendsPath = args[2];
+        String outputPath = args[3];
 
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "TaskD-Connectedness");

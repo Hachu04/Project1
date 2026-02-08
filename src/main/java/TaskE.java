@@ -37,7 +37,7 @@ public class TaskE {
         }
     }
 
-    public static class IntSumReducer
+    public static class AccessCountReducer
             extends Reducer<IntWritable,IntWritable,IntWritable,Text> {
 
         public void reduce(IntWritable key, Iterable<IntWritable> values,
@@ -62,7 +62,7 @@ public class TaskE {
         job.setJarByClass(TaskE.class);
         job.setMapperClass(TokenizerMapper.class);
 //        job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(IntSumReducer.class);
+        job.setReducerClass(AccessCountReducer.class);
         job.setMapOutputValueClass(IntWritable.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(Text.class);
@@ -76,8 +76,8 @@ public class TaskE {
         Job job = Job.getInstance(conf, "task E");
         job.setJarByClass(TaskE.class);
         job.setMapperClass(TokenizerMapper.class);
-        job.setCombinerClass(IntSumReducer.class);
-//        job.setReducerClass(IntSumReducer.class);
+        //job.setCombinerClass(AccessCountReducer.class);
+        job.setReducerClass(AccessCountReducer.class);
         job.setMapOutputValueClass(IntWritable.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(Text.class);

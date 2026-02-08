@@ -146,10 +146,10 @@ public class TaskF {
             System.exit(2);
         }
 
-        String pagesPath = args[0];
-        String friendsPath = args[1];
-        String accessLogPath = args[2];
-        String outputPath = args[3];
+        String pagesPath = args[1];
+        String friendsPath = args[2];
+        String accessLogPath = args[3];
+        String outputPath = args[4];
 
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "TaskF-UnvisitedFriends");
